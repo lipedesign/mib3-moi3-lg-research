@@ -16,7 +16,7 @@ You only need your phone and the car:
 OBDeleven / VCDS / ODIS, reading only:
 
 - **`Dashboard_Display_Configuration` (channel `0xB5A`) field values** on your unit — `navigation_map_transmission_mode`, `navigation_map_compression_mode`, `navigation_map_resolution`, `ability_switch_nav_maps`. Collecting these across MU versions and markets would build a real table. *So far:* two units, an LG (MU 0803) and a Preh / JOYNEXT (MU 0330), read the same except `ability_switch_nav_maps` — see [cluster-map.md](cluster-map.md) §4.2.
-- **`ability_switch_nav_maps = no` on an LG unit.** Does the native map still reach the cluster? And with `no`, does the centre screen keep its own map while the cluster shows one, or can the map not be moved? This would confirm the correction in [cluster-map.md](cluster-map.md) §4.1.
+- **`ability_switch_nav_maps = no` on an LG unit.** On a Preh unit this is answered: `no` gives a map on both screens, `yes` gives one switchable map ([cluster-map.md](cluster-map.md) §4.1). On LG, two maps also need the `DualMap` package, which the unit picks from the board's `grade_id` strap ([cluster-map.md](cluster-map.md) §4.2). What does `no` do on a single-grade LG unit? And on yours, can the centre screen and the cluster show a map at the same time?
 - **Coding landscape for MOI3 LG**: which one-click / adaptation items actually exist (cluster themes, cluster layouts, "wireless CarPlay" on the head unit) and which don't. Help separate "coding" from "needs firmware change".
 
 ## 3. RE / understanding — analysis only, within scope

@@ -194,7 +194,7 @@ other picture transport. `[fw-static]`
 | `ID_NAVIGATION_MAP_TRANSMISSION_MODE` | 0 | int (0..3, 5) | `Dia_Anp_4142` | `0x00 = off`, `0x01 = IP streaming`, `0x02 = MOST streaming`, `0x03 = LVDS` — most likely what actually turns the cluster map on (§9, inferred) |
 | `ID_NAVIGATION_MAP_COMPRESSION_MODE` | 1 | int (0..2) | — | codec selection (**H.264**) |
 | `ID_NAVIGATION_MAP_RESOLUTION` | 2 | int (0) | — | requested cluster-map resolution index |
-| `ID_ABILITY_SWITCH_NAV_MAPS` ("Map Switch") | **7 / 1** | bool | `Dia_Anp_4182` | `0 = no`, `1 = yes` — tells the cluster the map can be switched on/off; **not** the map enable (§9) |
+| `ID_ABILITY_SWITCH_NAV_MAPS` ("Map Switch") | **7 / 1** | bool | `Dia_Anp_4182` | `0 = no`, `1 = yes` — `yes` = one map, switchable between screens; `no` = no switch (a Preh unit then shows a map on both screens); **not** the map enable (§9) |
 | `ID_DYNAMIC_ICON` | 7 / 2–3 | int (0..2) | `Dia_Anp_4178` | `0 = off`, `1 = BAP`, `2 = MOST` |
 | `ID_COVERART` | 6 | int (0..2) | — | cover-art transmission to cluster |
 | `ID_STATIONART` | 7 / 6–7 | int (0..2) | — | station-art transmission |
@@ -386,8 +386,9 @@ Dashboard_Display_Configuration  0B5A  byte 7 / bit 1   (ID_ABILITY_SWITCH_NAV_M
 The flag tells the cluster that the head unit supports **switching the video map on and off**
 (moving it between the radio screen and the cluster). It is not the map itself: a Preh /
 JOYNEXT unit shows the native map on the cluster with this bit at `no`
-([issue #1](https://github.com/lipedesign/mib3-moi3-lg-research/issues/1)). `[disasm]` +
-`[field]`
+([issue #1](https://github.com/lipedesign/mib3-moi3-lg-research/issues/1)). Its owner toggled
+the bit: with `no` the map is on both screens and there is no switch option; with `yes` a
+Switch button appears and the map is on one screen at a time. `[disasm]` + `[field]`
 
 > **Correction (2026-10-15).** Earlier versions of this section and of
 > [cluster-map.md](cluster-map.md) §4.1 called this bit "the native-map enable bit". The full

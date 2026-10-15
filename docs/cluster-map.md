@@ -230,7 +230,7 @@ Fields (byte positions are within the adaptation's data block; bit 0 = least sig
 | `navigation_map_transmission_mode` (`ID_NAVIGATION_MAP_TRANSMISSION_MODE`) | byte 0 | **0 = off, 1 = IP streaming, 2 = MOST, 3 = LVDS** — most likely the field that actually turns the cluster map on (§4.1) | `[fw-static]` (HMI field table); enable role `[inferred]` |
 | `navigation_map_compression_mode` (`ID_NAVIGATION_MAP_COMPRESSION_MODE`) | byte 1 | codec selection (**H264**) | `[fw-static]` |
 | `navigation_map_resolution` (`ID_NAVIGATION_MAP_RESOLUTION`) | byte 2 | requested cluster-map resolution index | `[fw-static]` |
-| `ability_switch_nav_maps` (`ID_ABILITY_SWITCH_NAV_MAPS`, "Map Switch") | **byte 7 / bit 1** | tells the cluster the map can be switched on/off (moved between radio screen and cluster); **not** what puts the map on the cluster (§4.1) | `[disasm]` + `[runtime]`; `[field]` |
+| `ability_switch_nav_maps` (`ID_ABILITY_SWITCH_NAV_MAPS`, "Map Switch") | **byte 7 / bit 1** | `yes` = one map, switchable between radio screen and cluster; `no` = no switch (a Preh unit then shows a map on both screens); **not** what puts the map on the cluster (§4.1) | `[disasm]` + `[runtime]`; `[field]` |
 | `crossroad_detail_map_transmission_mode` | (same group) | transport for the crossroad-detail view | `[fw-static]` (observed `off`) |
 
 The same adaptation group also carries further "what else is pushed to the cluster" fields —
@@ -274,6 +274,10 @@ Dashboard_Display_Configuration  byte 7 / bit 1   (switchMapSupported)
 > [issue #1](https://github.com/lipedesign/mib3-moi3-lg-research/issues/1)). `[disasm]` +
 > `[field]`
 
+**Field test** (same unit, same issue): the owner toggled the bit. With `no`, the map is on both
+screens at once and the navigation settings have no switch option. Set to `yes`, a Switch button
+appears and the factory map is on one screen at a time, with a compass on the other. `[field]`
+
 **What actually turns the map on** is then most likely `navigation_map_transmission_mode`
 (byte 0): its values are the transports themselves (off / IP / MOST / LVDS), both units in §4.2
 show the map on the cluster with it at `IP_streaming`, and the library carries an
@@ -288,7 +292,7 @@ function-list, the things the diagnostic tool reads and writes. `[disasm]`
 ### 4.2 What a real unit reads as
 
 Two in-service units have been read with a diagnostic tool so far: an LG unit (the MU 0803
-field unit) and a Preh / JOYNEXT unit (reported in
+field unit) and a Preh / JOYNEXT unit in a 2020 GTE, UK market car (reported in
 [issue #1](https://github.com/lipedesign/mib3-moi3-lg-research/issues/1)). Both show the native
 map on the cluster, and both read the same ten fields in the same order:
 
@@ -307,7 +311,13 @@ map on the cluster, and both read the same ten fields in the same order:
 
 The only difference is the Map Switch bit — which is what exposed the correction in §4.1. On
 the LG unit (`yes`) the map *moves*: it leaves the radio screen while it is on the cluster
-(§3.1). How the Preh unit behaves with `no` has been asked in the issue.
+(§3.1). On the Preh unit, `no` gives a map on both screens at once (field test in §4.1).
+
+On LG, whether two maps can be shown at all is also decided by **hardware**. The navigation
+engine ships as two packages, `SingleMap` (one visible renderer) and `DualMap` (two), and
+`/lge/app_ro/post_init/data/navigation.sh` links one of them at first boot from a board strap,
+`/sys/devices/soc/soc:common_gpio_default/grade_id` (`0x0` = single, `0x1` = dual) — not from
+coding. `[fw-static]` What `no` does on a single-grade LG unit is an open question.
 
 On the LG side, the reading is exactly what the firmware shows independently (`ff14::2:4`, `multi-screen-server`
 H.264/OMX.qcom): the native cluster map leaves the head unit as **H.264-over-IP**. A companion
