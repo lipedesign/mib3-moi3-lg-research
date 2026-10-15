@@ -22,7 +22,7 @@ flowchart LR
     COD["coding — Dashboard_Display_Configuration (0B5A)<br/>navigation_map_transmission_mode = IP"] -. enables .-> MSS
 ```
 
-> The head unit (`5F`) renders the map, H.264-encodes it, and streams it as IPv6-multicast video over Automotive Ethernet; the cluster is a **separate ECU** that joins the group and decodes. One coding bit switches it on. This is the **native** map — the full phone-app map (Waze/Maps) is a different, harder problem. Full detail in **[docs/cluster-map.md](docs/cluster-map.md)**.
+> The head unit (`5F`) renders the map, H.264-encodes it, and streams it as IPv6-multicast video over Automotive Ethernet; the cluster is a **separate ECU** that joins the group and decodes. It is switched on by coding, not by a firmware change. This is the **native** map — the full phone-app map (Waze/Maps) is a different, harder problem. Full detail in **[docs/cluster-map.md](docs/cluster-map.md)**.
 
 ## 📂 What's inside
 
@@ -30,7 +30,7 @@ flowchart LR
 |---|---|
 | 🧩 [architecture.md](docs/architecture.md) | Platform architecture — diagnosis addresses, buses, GPS source, sound (A2B), radio, displays, image transport |
 | 🗺️ [cluster-map.md](docs/cluster-map.md) | **The core** — the navigation-map-to-cluster pipeline and the three "layers" of map-on-cluster |
-| 🔧 [coding-model.md](docs/coding-model.md) | The coding / adaptation model — DIDs, fields, and the one bit that lights the native map |
+| 🔧 [coding-model.md](docs/coding-model.md) | The coding / adaptation model — DIDs, fields, and the coding behind the native map on the cluster |
 | 💾 [firmware.md](docs/firmware.md) | Firmware package structure — AGL userland, Qualcomm boot chain, protection layers, update container, and known trains/versions |
 | 🖼️ [hmi.md](docs/hmi.md) | The HMI from the inside — the Java/OpenGL/Weston app, the DSI/VIWI services, and how it decides what to show |
 | 🖥️ [bench-emulation.md](docs/bench-emulation.md) | Methodology for studying the HMI **read-only on a PC** |

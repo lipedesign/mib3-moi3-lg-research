@@ -227,19 +227,18 @@ Fields (byte positions are within the adaptation's data block; bit 0 = least sig
 
 | Field (ODIS-style suffix) | Byte / bit | Meaning | Evidence |
 |---|---|---|---|
-| `navigation_map_transmission_mode` (`ID_NAVIGATION_MAP_TRANSMISSION_MODE`) | byte 0 | **0 = off, 1 = IP streaming, 2 = MOST, 3 = LVDS** | `[fw-static]` (HMI field table) |
+| `navigation_map_transmission_mode` (`ID_NAVIGATION_MAP_TRANSMISSION_MODE`) | byte 0 | **0 = off, 1 = IP streaming, 2 = MOST, 3 = LVDS** — most likely the field that actually turns the cluster map on (§4.1) | `[fw-static]` (HMI field table); enable role `[inferred]` |
 | `navigation_map_compression_mode` (`ID_NAVIGATION_MAP_COMPRESSION_MODE`) | byte 1 | codec selection (**H264**) | `[fw-static]` |
 | `navigation_map_resolution` (`ID_NAVIGATION_MAP_RESOLUTION`) | byte 2 | requested cluster-map resolution index | `[fw-static]` |
-| `ability_switch_nav_maps` (`ID_ABILITY_SWITCH_NAV_MAPS`, "Map Switch") | **byte 7 / bit 1** | enables moving the map between radio screen and cluster | `[disasm]` + `[runtime]` |
+| `ability_switch_nav_maps` (`ID_ABILITY_SWITCH_NAV_MAPS`, "Map Switch") | **byte 7 / bit 1** | tells the cluster the map can be switched on/off (moved between radio screen and cluster); **not** what puts the map on the cluster (§4.1) | `[disasm]` + `[runtime]`; `[field]` |
 | `crossroad_detail_map_transmission_mode` | (same group) | transport for the crossroad-detail view | `[fw-static]` (observed `off`) |
 
-The same adaptation group is understood to carry further "what else is pushed to the cluster"
-fields — e.g. **cover art**, **call picture** and **station art** transmission — governing
-non-map artwork sent to the cluster. We have **not** pinned down their byte positions here, so
-they are listed by name only. `[inferred]` / to be confirmed by contributors (see
-[open-questions.md](open-questions.md)).
+The same adaptation group also carries further "what else is pushed to the cluster" fields —
+**cover art**, **call picture** and **station art** transmission — governing non-map artwork
+sent to the cluster. Both units in §4.2 show them in this group (all three set to `bap`); their
+byte positions are in [coding-model.md](coding-model.md) §5.1. `[field]` + `[fw-static]`
 
-### 4.1 The enable chain, proven static **and** dynamic
+### 4.1 The Map Switch chain — and what it does *not* prove
 
 The "Map Switch" bit is the one with a fully traced mechanism:
 
@@ -253,36 +252,64 @@ Dashboard_Display_Configuration  byte 7 / bit 1   (switchMapSupported)
    setBapEntity
         │
         ▼
-   VideoNavigationSupported  (BAP FsgSetup  Df44 Bit0)
+   FunctionSupportActivationDeactivationOfTheVideoNavigationSupported
+   (BAP NavigationSd FsgSetup  Df44 Bit0)
 ```
 
 - `[disasm]`: there is exactly **one** instruction that writes member `0x19a`, from byte 7 /
   bit 1 of the adaptation, in the `nvmDataChanged` path — i.e. the mapping is unique.
 - `[runtime]`: running the **real** `libMIBNavSDClientLib_CarIF.so` code in a sandbox process
-  (no vehicle), forcing `0x19a = 1` makes the `VideoNavigationSupported Df44 Bit0` getter
-  return 1, and `0x19a = 0` makes it return 0. The whole chain therefore holds both statically
-  and at runtime.
+  (no vehicle), forcing `0x19a = 1` makes the `Df44 Bit0` getter return 1, and `0x19a = 0`
+  makes it return 0. The whole chain therefore holds both statically and at runtime.
 
-So: **`VideoNavigation` (the native cluster map) is the `Df44 Bit0` feature, enabled by the
-`0xB5A` byte 7 / bit 1 adaptation.** Other coding the software reads along the way:
-`_iaa_function_coding`, `_pso_function_coding`, `SemidynamicRouteGuidanceAvailable`,
-`FunctionList` — all ordinary function-coding / function-list, the things the diagnostic tool
-reads and writes. `[disasm]`
+> **Correction (2026-10-15).** An earlier version of this section concluded that this bit
+> *is* the native cluster map ("`VideoNavigation` is the `Df44 Bit0` feature, enabled by
+> byte 7 / bit 1"). That over-read the evidence. The full name of the BAP flag, as it appears
+> in the library's symbols, is
+> `FsgSetup::…FunctionSupportActivationDeactivationOfTheVideoNavigationSupportedDf44Bit0`: it
+> tells the cluster that the head unit supports **switching the video map on and off**, not
+> that the video map exists. That matches the field's own name (`ability_switch_nav_maps`)
+> and a field report: a Preh / JOYNEXT unit shows the native map on the cluster with this bit
+> at `no` (§4.2, reported by [@Mjukes](https://github.com/Mjukes) in
+> [issue #1](https://github.com/lipedesign/mib3-moi3-lg-research/issues/1)). `[disasm]` +
+> `[field]`
+
+**What actually turns the map on** is then most likely `navigation_map_transmission_mode`
+(byte 0): its values are the transports themselves (off / IP / MOST / LVDS), both units in §4.2
+show the map on the cluster with it at `IP_streaming`, and the library carries an
+`ipStreamingEnabled` flag on the stream path (§3.3). The link from byte 0 to that flag has
+**not** been traced in the disassembly yet — see [open-questions.md](open-questions.md).
+`[inferred]`
+
+Other coding the software reads along the way: `_iaa_function_coding`, `_pso_function_coding`,
+`SemidynamicRouteGuidanceAvailable`, `FunctionList` — all ordinary function-coding /
+function-list, the things the diagnostic tool reads and writes. `[disasm]`
 
 ### 4.2 What a real unit reads as
 
-When this group is read from an **in-service MOI3 LG unit** with a diagnostic tool, it is
-commonly set to the IP-video configuration:
+Two in-service units have been read with a diagnostic tool so far: an LG unit (the MU 0803
+field unit) and a Preh / JOYNEXT unit (reported in
+[issue #1](https://github.com/lipedesign/mib3-moi3-lg-research/issues/1)). Both show the native
+map on the cluster, and both read the same ten fields in the same order:
 
-| Field | Value observed on an in-service unit |
-|---|---|
-| `navigation_map_transmission_mode` | **IP_streaming** (byte 0 = 1) |
-| `navigation_map_compression_mode` | **H264** (byte 1) |
-| `navigation_map_resolution` | 1 (byte 2) |
-| `ability_switch_nav_maps` | **yes** (byte 7 / bit 1) |
-| `crossroad_detail_map_transmission_mode` | off |
+| Field | LG — `MOI3_EU_VW_R8030L` (MU 0803) | Preh / JOYNEXT — `MOI3_EU_VWMQB_P33000P` (MU 0330) `[field]` |
+|---|---|---|
+| `navigation_map_transmission_mode` | **IP_streaming** (byte 0 = 1) | **IP_streaming** |
+| `navigation_map_compression_mode` | **H264** (byte 1) | **H264** |
+| `navigation_map_resolution` | 1 (byte 2) | 1 |
+| `crossroad_detail_map_transmission_mode` | off | off |
+| `crossroad_detail_map_resolution` | 0 | 0 |
+| `coverart` | bap | bap |
+| `ability_switch_nav_maps` | **yes** (byte 7 / bit 1) | **no** |
+| `dynamic_icon` | off | off |
+| `call_picture` | bap | bap |
+| `stationart` | bap | bap |
 
-That is exactly what the firmware shows independently (`ff14::2:4`, `multi-screen-server`
+The only difference is the Map Switch bit — which is what exposed the correction in §4.1. On
+the LG unit (`yes`) the map *moves*: it leaves the radio screen while it is on the cluster
+(§3.1). How the Preh unit behaves with `no` has been asked in the issue.
+
+On the LG side, the reading is exactly what the firmware shows independently (`ff14::2:4`, `multi-screen-server`
 H.264/OMX.qcom): the native cluster map leaves the head unit as **H.264-over-IP**. A companion
 networking adaptation (`Switching_Networking = Ethernet`) is seen alongside it, consistent with
 the Ethernet transport. Public Ross-Tech forum threads show the field across units — one at
@@ -312,14 +339,16 @@ These are routinely conflated; they are three different problems.
 
 | Layer | What it is | On MOI3 LG | Protection wall? |
 |---|---|---|---|
-| **1. Native map** | the built-in navigation map drawn by the head unit's own engine and streamed to the cluster (`ff14::2:4`, `VideoNavigation Df44 Bit0`) | **coding** — supported, normally active; enabled by the `0xB5A` adaptation (§4) | No |
+| **1. Native map** | the built-in navigation map drawn by the head unit's own engine and streamed to the cluster (`ff14::2:4`, announced over BAP `VideoStreams`) | **coding** — supported, normally active; selected by the `0xB5A` adaptation (§4) | No |
 | **2. Phone turn-by-turn** | maneuver arrows / next-turn from the phone's navigation, shown on the cluster via CarPlay / Android Auto | **CarPlay's own behaviour**, varies by model/firmware (see below) | No (behaviour, not coding) |
 | **3. Full app map** | the Waze / Google Maps / Apple Maps **map itself**, rendered as video on the cluster | **not coding** (§6); a public *runtime* PoC exists (§6 update) | **Yes — access, not firmware** |
 
 Layer 2 detail `[field]`: multiple MIB3 owners report that **phone turn-by-turn directions do
 rise to the cluster** — **consistently with Apple Maps over CarPlay**, while reports for
-**Google Maps / Android Auto diverge**. This looks like **factory CarPlay behaviour**, not a
-coding item. The firmware backs this up: `libMIBNavSDClientLib` carries an `AppConnectRouteGuidanceActiveServiceHandler` and a BAP `FctSemidynamicRouteGuidanceAvailable` (**bit 50**) with a `SemidynamicRouteGuidance` data class (ETA, time-to-destination) — the head unit natively takes the phone's route guidance and forwards it to the cluster as *data* (arrows / ETA), a lighter path than layer 3's full video. `[fw-static]` (The MIB2-era `overall.nds` swap trick that forced more onto the cluster was
+**Google Maps / Android Auto diverge**. One data point on the Google side: the owner of a
+Preh / JOYNEXT unit (MU 0330, iPhone) reports arrows from **both Apple Maps and Google Maps**
+on the cluster ([issue #1](https://github.com/lipedesign/mib3-moi3-lg-research/issues/1)).
+This looks like **factory CarPlay behaviour**, not a coding item. The firmware backs this up: `libMIBNavSDClientLib` carries an `AppConnectRouteGuidanceActiveServiceHandler` and a BAP `FctSemidynamicRouteGuidanceAvailable` (**bit 50**) with a `SemidynamicRouteGuidance` data class (ETA, time-to-destination) — the head unit natively takes the phone's route guidance and forwards it to the cluster as *data* (arrows / ETA), a lighter path than layer 3's full video. `[fw-static]` (The MIB2-era `overall.nds` swap trick that forced more onto the cluster was
 **closed on MIB3**.) This is the cheap, no-tools thing to verify across cars — please do and
 report (model, market, MU, which app).
 
@@ -427,7 +456,7 @@ MOI3 LG.
 | Fact | Platform | Applies to MOI3 LG? |
 |---|---|---|
 | `ff14::2:4` / UDP 42800 / VLAN 5, `createOrUpdateStreamParameters`, VIWI POST, H.264/OMX.qcom | **MOI3 (MIB3 LG, AGL/AArch64)** | **Yes** — this is the platform under study |
-| `Dashboard_Display_Configuration` `0xB5A`, `VideoNavigation Df44 Bit0` | **MOI3** | **Yes** — static + dynamic |
+| `Dashboard_Display_Configuration` `0xB5A`; Map Switch → BAP `Df44 Bit0` (on/off-switch support, §4.1) | **MOI3** | **Yes** — static + dynamic (same field names read on a Preh / JOYNEXT unit, `[field]`) |
 | `setActiveDisplayable`, numbered displayables (26/29/40/42/60/93) | **MPR3 (Audi)** | Reference only — analogous architecture, **not** confirmed literals on LG |
 | MOST150, `isoTX2`, type-111 / AltScreen, MOST contexts | **MHI2 / MHI2Q (QNX)** | **No** — different transport/method; absent on MOI3 |
 | Map/crossroads to cluster over **LVDS**, menus over **MOST** | **Audi/MLB** (SSP 970893) | **No** — MOI3 LG uses IP video instead |

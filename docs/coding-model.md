@@ -6,8 +6,8 @@ start-up, the field layout inside them, and what the important fields mean. This
 **legitimate configuration mechanism** — the same data a diagnostic tool (ODIS / VCDS /
 OBDeleven) reads and writes — and it is **distinct from modifying firmware**.
 
-It is the companion to [cluster-map.md](cluster-map.md): the one coding bit that actually
-lights the native map on the cluster is traced there and summarised in §9 below.
+It is the companion to [cluster-map.md](cluster-map.md): the coding behind the native map on
+the cluster is traced there and summarised in §9 below.
 
 > **Scope reminder.** Reading and writing these configuration values involves **no**
 > protection: coding/adaptation is what the car's own diagnostics are for. This document is
@@ -90,7 +90,7 @@ HMI's access layer — `getValue` (integer), `getBoolean` (single bit) and `getB
   bit 0 and is **big-endian** (most-significant byte first).
 - The value is an integer that must fit the field width.
 
-**Worked example** — the "Map Switch" bit (the one that matters in §9):
+**Worked example** — the "Map Switch" bit (the one traced in §9):
 
 ```
 DID 0B5A (adaptation), byte 7, bit 1, width 1, type bool
@@ -191,10 +191,10 @@ other picture transport. `[fw-static]`
 
 | Field (`ID_…`) | Byte / bit | Type | ODIS tag | Values |
 |---|---|---|---|---|
-| `ID_NAVIGATION_MAP_TRANSMISSION_MODE` | 0 | int (0..3, 5) | `Dia_Anp_4142` | `0x00 = off`, `0x01 = IP streaming`, `0x02 = MOST streaming`, `0x03 = LVDS` |
+| `ID_NAVIGATION_MAP_TRANSMISSION_MODE` | 0 | int (0..3, 5) | `Dia_Anp_4142` | `0x00 = off`, `0x01 = IP streaming`, `0x02 = MOST streaming`, `0x03 = LVDS` — most likely what actually turns the cluster map on (§9, inferred) |
 | `ID_NAVIGATION_MAP_COMPRESSION_MODE` | 1 | int (0..2) | — | codec selection (**H.264**) |
 | `ID_NAVIGATION_MAP_RESOLUTION` | 2 | int (0) | — | requested cluster-map resolution index |
-| `ID_ABILITY_SWITCH_NAV_MAPS` ("Map Switch") | **7 / 1** | bool | `Dia_Anp_4182` | `0 = no`, `1 = yes` — **the native-map enable bit, §9** |
+| `ID_ABILITY_SWITCH_NAV_MAPS` ("Map Switch") | **7 / 1** | bool | `Dia_Anp_4182` | `0 = no`, `1 = yes` — tells the cluster the map can be switched on/off; **not** the map enable (§9) |
 | `ID_DYNAMIC_ICON` | 7 / 2–3 | int (0..2) | `Dia_Anp_4178` | `0 = off`, `1 = BAP`, `2 = MOST` |
 | `ID_COVERART` | 6 | int (0..2) | — | cover-art transmission to cluster |
 | `ID_STATIONART` | 7 / 6–7 | int (0..2) | — | station-art transmission |
@@ -206,7 +206,8 @@ fields: `ID_CROSSROAD_DETAIL_MAP_TRANSMISSION_MODE` (byte 0, same `0..3, 5` enum
 
 On an in-service MOI3 LG unit this group commonly reads as the IP-video configuration
 (transmission = IP streaming, compression = H.264, Map Switch = yes), matching the firmware's
-own H.264-over-IP cluster stream. Details and field reports are in
+own H.264-over-IP cluster stream. A Preh / JOYNEXT unit reads the same except Map Switch = no,
+and still shows the native map on the cluster. Details and field reports are in
 [cluster-map.md](cluster-map.md) §4.2. `[field]`
 
 ### 5.2 `0558` — navigation function
@@ -349,10 +350,20 @@ questions: `0B1B` = "offer this car menu"; `0B1D` = "this device exists on bus X
 
 ---
 
-## 9. The native-map enable chain — this **is** coding
+## 9. The native cluster map — this **is** coding
 
-One adaptation bit is traced end-to-end from the coding byte to the feature flag that turns on
-the **native** cluster map. From [cluster-map.md](cluster-map.md) §4.1:
+The **native cluster map** (the head unit's own map, H.264-encoded and streamed to the cluster
+over IP — see [cluster-map.md](cluster-map.md) §1, §5 layer 1) is governed by the `0B5A`
+**adaptation**, `Dashboard_Display_Configuration`. Turning it on or off is ordinary coding:
+no firmware change, no protection involved.
+
+**Which field turns it on** is most likely `ID_NAVIGATION_MAP_TRANSMISSION_MODE` (byte 0):
+its values are the transports themselves (off / IP / MOST / LVDS), and both units read so far
+show the map on the cluster with it at `IP_streaming`. The link from byte 0 to the stream code
+has not been traced in the disassembly yet. `[inferred]`
+
+**What the "Map Switch" bit does** is traced end-to-end. From
+[cluster-map.md](cluster-map.md) §4.1:
 
 ```
 Dashboard_Display_Configuration  0B5A  byte 7 / bit 1   (ID_ABILITY_SWITCH_NAV_MAPS, "switchMapSupported")
@@ -363,22 +374,28 @@ Dashboard_Display_Configuration  0B5A  byte 7 / bit 1   (ID_ABILITY_SWITCH_NAV_M
         ▼
    setBapEntity
         ▼
-   VideoNavigationSupported   (BAP FsgSetup  Df44 Bit0)
+   FunctionSupportActivationDeactivationOfTheVideoNavigationSupported   (BAP FsgSetup  Df44 Bit0)
 ```
 
 - `[disasm]`: there is **exactly one** instruction that writes member `0x19a`, fed from `0B5A`
   byte 7 / bit 1 on the `nvmDataChanged` path — the mapping is unique.
 - `[runtime]`: running the real nav-client library in the PC sandbox (no vehicle), forcing
-  `0x19a = 1` makes the `VideoNavigationSupported` (Df44 Bit0) getter return 1, and `0x19a = 0`
-  makes it return 0. The chain holds **both statically and at runtime**.
+  `0x19a = 1` makes the `Df44 Bit0` getter return 1, and `0x19a = 0` makes it return 0. The
+  chain holds **both statically and at runtime**.
 
-So the **native cluster map** (the head unit's own map, H.264-encoded and streamed to the
-cluster over IP — see [cluster-map.md](cluster-map.md) §1, §5 layer 1) is the `Df44 Bit0`
-feature, and it is enabled by the `0B5A` byte 7 / bit 1 **adaptation**. Turning it on is
-ordinary coding: a diagnostic tool flips the "Map Switch" bit; no firmware change, no
-protection involved. The other values the software reads along the way
-(`_iaa_function_coding`, `_pso_function_coding`, `SemidynamicRouteGuidanceAvailable`,
-`FunctionList`) are likewise ordinary function-coding / function-list items. `[disasm]`
+The flag tells the cluster that the head unit supports **switching the video map on and off**
+(moving it between the radio screen and the cluster). It is not the map itself: a Preh /
+JOYNEXT unit shows the native map on the cluster with this bit at `no`
+([issue #1](https://github.com/lipedesign/mib3-moi3-lg-research/issues/1)). `[disasm]` +
+`[field]`
+
+> **Correction (2026-10-15).** Earlier versions of this section and of
+> [cluster-map.md](cluster-map.md) §4.1 called this bit "the native-map enable bit". The full
+> BAP name and the field report above show it is the on/off-switch capability instead.
+
+The other values the software reads along the way (`_iaa_function_coding`,
+`_pso_function_coding`, `SemidynamicRouteGuidanceAvailable`, `FunctionList`) are likewise
+ordinary function-coding / function-list items. `[disasm]`
 
 ---
 
@@ -404,7 +421,7 @@ is explicitly out of scope. The distinction to carry away:
 
 | Capability | Mechanism | Coding? |
 |---|---|---|
-| Native cluster map (§9) | `0B5A` byte 7 / bit 1 → `VideoNavigation Df44 Bit0` | **Yes** — adaptation, proven static + runtime |
+| Native cluster map (§9) | `0B5A` adaptation — most likely the transport field (byte 0, `IP_streaming`); the byte 7 / bit 1 Map Switch → `Df44 Bit0` only advertises on/off switching | **Yes** — adaptation (Map Switch chain proven static + runtime; byte 0 as the enable is inferred) |
 | Phone turn-by-turn arrows on cluster | factory CarPlay behaviour (varies by app/market) | No — behaviour, not a coding item |
 | Full phone-app map on cluster | hardcoded `RouteGuidanceByMobileDevice` gate in firmware | **No** — no adaptation channel exists |
 
