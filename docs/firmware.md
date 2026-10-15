@@ -54,6 +54,21 @@ Decoding that tag **[static]**:
 
 ---
 
+### Known trains & versions
+
+The train string encodes the **vendor** (`…R…L` = LG, `…P…` = Preh) and the region; the **MU** number is the version within a train (higher = newer). A non-exhaustive list of trains seen referenced publicly, for version orientation:
+
+| Train | MU | Vendor |
+|---|---|---|
+| `MOI3_EU_VW_R8030L` | 0803 | LG |
+| `MOI3_EU_VW_R8410L` | 0841 | LG |
+| `MOI3_EU_VW_R8830L` | 0883 | LG |
+| `MOI3_EU_VW_R9690L` | 1969 | LG (newest official seen) |
+| `MOI3_EU_VWMQB_P27800P` | 0278 | Preh |
+| `MOI3_EU_VWMQB_P33000P` | 0330 | Preh |
+
+This table is for **version orientation only** — this repository does **not** host or link firmware. See [architecture.md](architecture.md) §8 for how to read the vendor from the train.
+
 ## 2. The update container (UMC / SWUP)
 
 Opened read-only with `bsdtar` (libarchive reads/extracts the `.7z` directly — no
@@ -138,6 +153,19 @@ VW/Audi moved MIB3 to Automotive Grade Linux.
 
 ### 4.1 Operating system
 
+```mermaid
+flowchart TB
+    HMI["HMI — Java app · OISmall skin · OpenGL ES3"]
+    COMP["Weston / Wayland compositor"]
+    SVC["System services<br/>naviengine · multi-screen-server · carif · displaymanagement · RSI/VIWI"]
+    INIT["systemd · SMACK / Cynara (mandatory access control)"]
+    K["Linux kernel 4.4.115 — AGL 3.0 'chinook' (Yocto/Poky)"]
+    HW["Qualcomm Snapdragon — MSM8996pro · Adreno 530 · Hexagon ADSP"]
+    HMI --- COMP --- SVC --- INIT --- K --- HW
+```
+
+_The software stack, top (user-facing HMI) to bottom (SoC)._
+
 Read from the reconstructed `system` partition: **[verified]**
 
 | Item | Value |
@@ -182,6 +210,14 @@ consistent with the AVB/TSN in-car transport), `mlan.ko` / `moal.ko` (Marvell WL
 and netfilter. **[static]**
 
 ### 4.2 SoC & boot chain
+
+```mermaid
+flowchart LR
+    PBL["PBL<br/>(ROM)"] --> XBL["xbl"] --> TZ["tz · rpm · hyp"] --> ABOOT["aboot"] --> BOOT["boot.img<br/>kernel, no ramdisk"] --> SYS["system (ext4)<br/>mounted via dm-verity"]
+    SIGN["each .mbn is signed and verified stage-by-stage<br/>— Qualcomm Secure Boot"] -. guards .-> XBL
+```
+
+_Described as architectural fact; this repo does not cover defeating any stage — see §6._
 
 The application SoC is a **Qualcomm Snapdragon, automotive 820A class**: **[verified from
 boot.img DTB + kernel IKCONFIG]**

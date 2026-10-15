@@ -31,7 +31,8 @@ flowchart LR
 | 🧩 [architecture.md](docs/architecture.md) | Platform architecture — diagnosis addresses, buses, GPS source, sound (A2B), radio, displays, image transport |
 | 🗺️ [cluster-map.md](docs/cluster-map.md) | **The core** — the navigation-map-to-cluster pipeline and the three "layers" of map-on-cluster |
 | 🔧 [coding-model.md](docs/coding-model.md) | The coding / adaptation model — DIDs, fields, and the one bit that lights the native map |
-| 💾 [firmware.md](docs/firmware.md) | Firmware package structure — AGL userland, Qualcomm boot chain, protection layers, update container |
+| 💾 [firmware.md](docs/firmware.md) | Firmware package structure — AGL userland, Qualcomm boot chain, protection layers, update container, and known trains/versions |
+| 🖼️ [hmi.md](docs/hmi.md) | The HMI from the inside — the Java/OpenGL/Weston app, the DSI/VIWI services, and how it decides what to show |
 | 🖥️ [bench-emulation.md](docs/bench-emulation.md) | Methodology for studying the HMI **read-only on a PC** |
 | 🌐 [landscape.md](docs/landscape.md) | Related public projects/tools — and what carries over (and what doesn't) |
 | 📖 [glossary.md](docs/glossary.md) | The terms used across these notes |
