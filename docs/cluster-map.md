@@ -314,7 +314,7 @@ These are routinely conflated; they are three different problems.
 |---|---|---|---|
 | **1. Native map** | the built-in navigation map drawn by the head unit's own engine and streamed to the cluster (`ff14::2:4`, `VideoNavigation Df44 Bit0`) | **coding** — supported, normally active; enabled by the `0xB5A` adaptation (§4) | No |
 | **2. Phone turn-by-turn** | maneuver arrows / next-turn from the phone's navigation, shown on the cluster via CarPlay / Android Auto | **CarPlay's own behaviour**, varies by model/firmware (see below) | No (behaviour, not coding) |
-| **3. Full app map** | the Waze / Google Maps / Apple Maps **map itself**, rendered as video on the cluster | **not coding** (§6) | **Yes** |
+| **3. Full app map** | the Waze / Google Maps / Apple Maps **map itself**, rendered as video on the cluster | **not coding** (§6); a public *runtime* PoC exists (§6 update) | **Yes — access, not firmware** |
 
 Layer 2 detail `[field]`: multiple MIB3 owners report that **phone turn-by-turn directions do
 rise to the cluster** — **consistently with Apple Maps over CarPlay**, while reports for
@@ -348,6 +348,8 @@ VW; the signing key is not on the unit. The software *location* of the gate is m
 but **producing or operationalising a bypass of the signature/secure-boot chain is explicitly
 out of scope for this repository**, and we do not publish patch offsets or steps aimed at
 defeating those protections.
+
+> **Update (Oct 2026) — a runtime route exists, shown publicly.** The two facts above rule out *coding*, and they show that the **native** route (flip the gate **and** re-point `navsd_app`) would mean signed-firmware changes. They do **not** rule out a **third route**: a **custom service running at runtime** that takes the phone-app surface (CarPlay / Android Auto), crops it to the cluster's **1280×480**, and pushes it over the same **RSI / display** path — **without touching the signed firmware** (it runs from `tmpfs`; a reboot clears it, and dm-verity / Secure Boot / the VW signature stay intact). A public proof-of-concept by **daChillout & Meich** on a Cupra Formentor VZ (MOI3) did exactly this — Android Auto (Waze / Google Maps) on the cluster — and the author says it will be open-sourced ([drive2.ru](https://www.drive2.ru/l/745563717583775343/)). It **validates** the pipeline above: RSI, `multi-screen-server` and the 1280×480 cluster stream are exactly what it uses. **What the PoC does not publish — and what this repo does not cover — is how code execution is obtained on the unit.** The *display* step (a runtime RSI service) defeats no protection; the *access* to run code on the ECU is the separate, out-of-scope part.
 
 ### 6.1 The protection layers (described, not defeated)
 

@@ -25,6 +25,7 @@ OBDeleven / VCDS / ODIS, reading only:
 - **Version drift.** Do MU 0803 / 0841 / 0883 / … differ in the pipeline, the gate, or the adaptation layout?
 - **Preh vs LG.** Does the Preh variant (`MOI3_EU_VWMQB_P…`) use the same IP-video pipeline to the cluster, or a different transport?
 - **Maps.** Region/compatibility rules (e.g. South-America vs Europe map data) and how they couple to FEC/SWaP.
+- **Track the runtime PoC.** `daChillout` & `Meich` published a runtime proof-of-concept of the phone-app map on the MOI3 cluster — a custom RSI service run from `tmpfs`, **not a firmware modification** — and said it will be open-sourced ([drive2.ru](https://www.drive2.ru/l/745563717583775343/)). Worth following, reproducing within scope, and comparing to the pipeline in [cluster-map.md](cluster-map.md). The **display path** is the interesting, in-scope part; the **code-execution / access** method is the author's and stays out of scope here.
 
 ## Explicitly NOT in scope
 

@@ -207,11 +207,12 @@ unit** — the signed-rootfs gap in §2.4 is exactly why.
   demonstrates that the head unit retains location history and imagery, so any such extraction is
   sensitive and should never be published un-sanitized. (This repo is ODIS-focused and does not
   use the extraction path the tool consumes.)
+- **`daChillout` / `mqbtools.nl`** — a long-standing MIB customization author (Amsterdam; active on the drive2.ru community) who runs a web-based **GCA editor** (`mqbtools.nl/gca/`) that edits **MIB2 and MIB3/MOI3** GCA files: on-screen button layouts, touch zones and **ambient-lighting zones**. That is appearance/layout editing, like the rest of this section — **but the same author is the exception to the "appearance only" rule:** he and `Meich` published the first known **runtime** layer-3 proof-of-concept (the phone-app map on the MOI3 cluster). See §6.
 
 What this body of work confirms from the *tooling* side is the same thing §6 of
 [cluster-map.md](cluster-map.md) argues from the *architecture* side: the native map (layer 1)
 is coding and already works, and the full phone-app map on the cluster (layer 3) has **no
-public, non-firmware path** on MOI3 LG.
+public, non-firmware path** on MOI3 LG — until a public *runtime* PoC appeared in Oct 2026 (see §6 below).
 
 ---
 
@@ -233,6 +234,8 @@ services over a local WebSocket/REST bus) that the firmware implements with its 
 
 ## 6. Honest conclusion
 
+> **Update (Oct 2026).** A public **runtime** proof-of-concept by **daChillout & Meich** (on drive2.ru) now shows the phone-app map (Android Auto / Waze / Google Maps) on the MOI3 cluster **without modifying signed firmware** — a custom RSI service run from `tmpfs` — and the author says it will be open-sourced. So the "no public base" below means the **GitHub** sweeps and any *coding / firmware* path; the **drive2.ru** scene those sweeps missed is where the real movement is. The *access* method the PoC relies on is not published, and defeating protections stays out of scope.
+
 For MOI3 LG, **the function everyone wants — CarPlay, or the phone app's map, on the instrument
 cluster (layer 3) — has no public base.** The October 2026 sweeps found **zero MOI3 repositories
 and zero code hits** for the platform's internal strings. The entire active "map-in-cluster"
@@ -247,7 +250,7 @@ of it is read/edit-on-PC; none of it is a vehicle function, and none writes to t
 
 In short: on this platform the **native map (layer 1) is coding and already works**; the
 **phone turn-by-turn (layer 2)** appears to be factory CarPlay behaviour; and the **full app
-map (layer 3)** is a signed-firmware problem with no public solution. This repository documents
+map (layer 3)** has no coding or firmware solution — though a public *runtime* PoC (not a firmware modification) has since appeared; see the update at the top of this section. This repository documents
 the architecture and the landscape — not a way through the protections.
 
 ## Protections (scope note)
