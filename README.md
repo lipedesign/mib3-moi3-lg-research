@@ -1,61 +1,77 @@
 # MIB3 "MOI3" (LG) — Research Notes
 
-Open, community-oriented reverse-engineering and research notes on the **Volkswagen Group MIB3** infotainment platform — specifically the **"MOI3" variant built by LG** (firmware trains `MOI3_EU_VW_R####L`, e.g. MU 08xx).
+> Open reverse-engineering notes on the **LG-built "MOI3"** variant of the Volkswagen Group **MIB3** infotainment platform — how the navigation map reaches the instrument cluster, the platform architecture, the firmware structure, and the coding model.
 
-The central question these notes grew around: **how does the native navigation map get onto the instrument cluster (the "Active Info Display" / digital cockpit), and what is actually possible on this platform?** Along the way they document the platform architecture and the firmware structure.
+![license](https://img.shields.io/badge/license-CC%20BY%204.0-blue)
+![status](https://img.shields.io/badge/status-research%20notes-orange)
+![platform](https://img.shields.io/badge/platform-MIB3%20MOI3%20LG-informational)
+![scope](https://img.shields.io/badge/scope-read--only-success)
+![protections](https://img.shields.io/badge/protections-out%20of%20scope-lightgrey)
+![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen)
 
-> Status: living notes, compiled from reading public documents and analyzing firmware read-only. Contributions welcome — see [How to contribute](#how-to-contribute).
+---
 
-## Why this exists
+**TL;DR** — MIB3 ships as two very different machines. Almost everything public documents the **Harman MHI2** one (MOST bus, QNX). This repo is about the **other** one — **LG + Qualcomm + Automotive Grade Linux, with Ethernet video to the cluster** — which is barely documented anywhere. Everything here is **read-only** research from public documents and firmware analysis; **defeating device protections is out of scope.**
 
-Public information about MIB3 is overwhelmingly about the **Harman MHI2 / MHI2Q** platform (MOST bus, QNX). The **LG-built MOI3** variant is a different machine — **Qualcomm Snapdragon + Automotive Grade Linux (AGL)**, with an **Ethernet** transport — and it is almost undocumented in public. These notes try to be the reference that didn't exist, and to invite people with other cars, markets and firmware versions to verify and extend them.
+## 🧭 How the native map reaches the cluster
 
-## Scope / non-scope (please read)
+```mermaid
+flowchart LR
+    NE["naviengine<br/>renders the map"] --> MSS["multi-screen-server<br/>H.264 / OMX.qcom encode"]
+    MSS -->|"H.264 / UDP · IPv6 multicast<br/>ff14::2:4 : 42800 · VLAN 5<br/>Automotive Ethernet"| CL["Instrument cluster<br/>(separate ECU)<br/>joins group · decodes · displays"]
+    COD["coding — Dashboard_Display_Configuration (0B5A)<br/>navigation_map_transmission_mode = IP"] -. enables .-> MSS
+```
 
-- ✅ **In scope:** platform architecture, firmware package structure, the cluster-map video pipeline, the coding/adaptation fields involved, and the public tooling landscape.
-- ❌ **Not a protection-bypass guide.** We document *that* the unit uses **Qualcomm Secure Boot + dm-verity + VW firmware signing**, and how the system is put together — but this repository is deliberately **not** a guide to defeating those protections. Running modified, unsigned firmware on the unit is out of scope.
-- ❌ **No proprietary material.** No firmware binaries, no confidential manuals, no vehicle-identifying data. Everything here is our own analysis plus links to public sources.
-- ℹ️ **Nothing here was written to any vehicle.** These are read-only analysis and documentation notes.
+> The head unit (`5F`) renders the map, H.264-encodes it, and streams it as IPv6-multicast video over Automotive Ethernet; the cluster is a **separate ECU** that joins the group and decodes. One coding bit switches it on. This is the **native** map — the full phone-app map (Waze/Maps) is a different, harder problem. Full detail in **[docs/cluster-map.md](docs/cluster-map.md)**.
 
-## Platform covered
+## 📂 What's inside
+
+| Document | What it covers |
+|---|---|
+| 🧩 [architecture.md](docs/architecture.md) | Platform architecture — diagnosis addresses, buses, GPS source, sound (A2B), radio, displays, image transport |
+| 🗺️ [cluster-map.md](docs/cluster-map.md) | **The core** — the navigation-map-to-cluster pipeline and the three "layers" of map-on-cluster |
+| 🔧 [coding-model.md](docs/coding-model.md) | The coding / adaptation model — DIDs, fields, and the one bit that lights the native map |
+| 💾 [firmware.md](docs/firmware.md) | Firmware package structure — AGL userland, Qualcomm boot chain, protection layers, update container |
+| 🖥️ [bench-emulation.md](docs/bench-emulation.md) | Methodology for studying the HMI **read-only on a PC** |
+| 🌐 [landscape.md](docs/landscape.md) | Related public projects/tools — and what carries over (and what doesn't) |
+| 📖 [glossary.md](docs/glossary.md) | The terms used across these notes |
+| ❓ [open-questions.md](docs/open-questions.md) | The gaps — and where you can help |
+
+## 🚗 Platform covered
 
 | | |
 |---|---|
-| Generation | MIB3 ("Option Infotainment", "OI") |
-| Hardware vendor | **LG** — firmware trains ending in `…R…L`; the Preh variant uses `…P…` (see architecture doc) |
-| SoC / OS | Qualcomm Snapdragon + Automotive Grade Linux (AGL) |
-| Transport to cluster | **Ethernet** (IP multicast), not MOST |
-| Example firmware trains | `MOI3_EU_VW_R8030L` (MU 0803), `…R8410L` (MU 0841), `…R8830L` (MU 0883) |
+| **Generation** | MIB3 ("Option Infotainment", "OI") |
+| **Hardware vendor** | **LG** — firmware trains ending in `…R…L`; the Preh variant uses `…P…` |
+| **SoC / OS** | Qualcomm Snapdragon + Automotive Grade Linux (AGL) |
+| **Transport to cluster** | **Ethernet** (IP multicast) — not MOST |
+| **Example trains** | `MOI3_EU_VW_R8030L` (MU 0803), `…R8410L` (0841), `…R8830L` (0883) |
 
-## Contents
+## ✅ Scope / ❌ non-scope
 
-- **[docs/architecture.md](docs/architecture.md)** — platform architecture: diagnosis addresses, buses, GPS source, sound (A2B), radio, displays and the image-transport paths.
-- **[docs/cluster-map.md](docs/cluster-map.md)** — the **navigation-map-to-cluster pipeline**: the multicast video stream, the codec, the adaptation that enables it, and the three "layers" of map-on-cluster (native / phone turn-by-turn / full app map). The core of this repo.
-- **[docs/coding-model.md](docs/coding-model.md)** — the **coding / adaptation model**: how the HMI reads coding "sets" (DIDs), the field layout, the important fields, and the one coding bit that lights the native cluster map.
-- **[docs/firmware.md](docs/firmware.md)** — firmware package structure: the AGL userland, the Qualcomm boot chain, the protection layers, and the update-container format.
-- **[docs/bench-emulation.md](docs/bench-emulation.md)** — methodology for studying the HMI **read-only on a PC** (observing its behaviour without the hardware).
-- **[docs/landscape.md](docs/landscape.md)** — related public projects and tools, and what does / doesn't carry over from the Harman MHI2 scene.
-- **[docs/glossary.md](docs/glossary.md)** — the terms used across these notes.
-- **[docs/open-questions.md](docs/open-questions.md)** — what we still don't know, and where contributors can help.
+- ✅ **In scope** — platform architecture, firmware package structure, the cluster-map pipeline, the coding/adaptation fields, the public tooling landscape.
+- ❌ **Not a protection-bypass guide** — we document *that* the unit uses **Qualcomm Secure Boot + dm-verity + VW firmware signing** and how the system is built, but defeating those is deliberately out of scope.
+- ❌ **No proprietary material** — no firmware binaries, no confidential manuals, no vehicle-identifying data.
+- ℹ️ **Read-only** — nothing here was ever written to a vehicle.
 
-## How to contribute
+## 🤝 How to contribute
 
-This is most useful if people with **different MOI3 LG models, markets and firmware versions** confirm these findings and add their own. Especially helpful:
+The most valuable thing you can add: confirm these findings on **your** car, and help fill the gaps.
 
-- Confirm or correct the behaviours described here **on your car** — tell us the model, market and firmware train / MU version.
-- Add adaptation-field readings (**sanitized**: no VIN, no serial numbers).
+- Confirm or correct what's here **on your car** — tell us the model, market and firmware train / MU (**never a VIN**).
+- Add adaptation-field readings — **sanitized** (no VIN, no serial numbers).
 - Fix anything that's wrong, with evidence.
 
-Open an issue or a pull request. Please keep every contribution **free of vehicle-identifying data** and **free of protection-bypass instructions**, matching the scope above.
+Open an [issue](../../issues) or a pull request. Keep every contribution **free of vehicle-identifying data** and **free of protection-bypass instructions**. New here? Start with **[open-questions.md](docs/open-questions.md)**.
 
-## Sources
+## 📚 Sources
 
-The main public source referenced throughout is the Audi/VW Self-Study Programme **SSP 970893, "Third-generation modular infotainment matrix"**, which is public via the US NHTSA. Other sources are linked inline in each document.
+Main public source: the Audi/VW Self-Study Programme **SSP 970893** ("Third-generation modular infotainment matrix"), public via the US NHTSA. Other sources are linked inline in each document.
 
-## Disclaimer
+## ⚖️ Disclaimer
 
-Independent research. Not affiliated with, authorized by, or endorsed by Volkswagen AG, Audi AG, LG Electronics or Apple Inc. "CarPlay" is a trademark of Apple Inc.; "MIB", "MQB" and "Active Info Display" are used descriptively to refer to the systems under study. Information is provided as-is, with no warranty. Coding or firmware changes to a vehicle can affect safety, warranty and regulatory compliance, and can render modules inoperative — act at your own risk.
+Independent research. Not affiliated with, authorized by, or endorsed by Volkswagen AG, Audi AG, LG Electronics or Apple Inc. "CarPlay" is a trademark of Apple Inc.; "MIB", "MQB" and "Active Info Display" are used descriptively. Provided as-is, with no warranty. Coding or firmware changes to a vehicle can affect safety, warranty and regulatory compliance and can render modules inoperative — **act at your own risk**.
 
-## License
+## 📄 License
 
-Documentation: **CC BY 4.0** (proposed). Any code or snippets: **MIT**.
+Documentation: **CC BY 4.0** · Code/snippets: **MIT** — see [LICENSE](LICENSE). Attribution: *lipedesign — MIB3 MOI3 (LG) Research Notes*.
