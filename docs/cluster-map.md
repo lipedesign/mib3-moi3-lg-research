@@ -115,7 +115,7 @@ parameters as seen by the receiver (negotiated resolution, fps, SPS/PPS) are an 
   screen, 800×480 in the `eu/single` package) and **`kombi`** (the cluster map, **1280×480,
   up to 12 fps**). `[fw-static]`
 - It draws through `libEGL_adreno` / `libGLESv2_adreno` (OpenGL ES 3.0) onto a Wayland/IVI
-  surface whose size and IVI id it requests over RSI from the display service. `[fw-static]`
+  surface whose size and IVI id it requests over RSI from the display service. Which renderer feeds the `kombi` output is chosen by a **`_kombiMaprendererUri`** (a mode URI held in `libMIBNavSDClientLib`), and `FctVideoStreams` is exposed over BAP as available via **bit 58** — so the cluster's video *source* is selected by a URI/flag, not hard-wired. `[fw-static]`
 - In the single-map package only one renderer is visible at a time (`ActiveSingleMapRenderer`,
   persisted): the map is **either** on the radio screen **or** on the cluster, not both. This
   is exactly what the "Map Switch" adaptation toggles (§4). `[fw-static]` + `[field]`
@@ -125,7 +125,7 @@ parameters as seen by the receiver (negotiated resolution, fps, SPS/PPS) are an 
 
 `/lge/app_ro/graphics/multi-display/multi-screen-server`. This is the H.264 encoder and the
 transmitter. It **does not render** — it only takes the finished frame of the engine's
-`kombi` surface and ships it. `[fw-static]`
+`kombi` surface and ships it. Its command line — `multi-screen-server <ip> <port> <-m/-u> <surface ID to share> <fps>` — makes the **shared surface a parameter**: it ships *whatever* IVI surface id it is handed, not only the native engine's. That parametrisation is what the runtime route in §6 builds on. `[fw-static]`
 
 - It is a Wayland client: it asks the compositor for the shared buffer of the engine's surface
   via the Weston **`ivi_share`** ("Buffer Sharing") extension — `get_ivi_share_surface(<id>)`,
@@ -319,7 +319,7 @@ These are routinely conflated; they are three different problems.
 Layer 2 detail `[field]`: multiple MIB3 owners report that **phone turn-by-turn directions do
 rise to the cluster** — **consistently with Apple Maps over CarPlay**, while reports for
 **Google Maps / Android Auto diverge**. This looks like **factory CarPlay behaviour**, not a
-coding item. (The MIB2-era `overall.nds` swap trick that forced more onto the cluster was
+coding item. The firmware backs this up: `libMIBNavSDClientLib` carries an `AppConnectRouteGuidanceActiveServiceHandler` and a BAP `FctSemidynamicRouteGuidanceAvailable` (**bit 50**) with a `SemidynamicRouteGuidance` data class (ETA, time-to-destination) — the head unit natively takes the phone's route guidance and forwards it to the cluster as *data* (arrows / ETA), a lighter path than layer 3's full video. `[fw-static]` (The MIB2-era `overall.nds` swap trick that forced more onto the cluster was
 **closed on MIB3**.) This is the cheap, no-tools thing to verify across cars — please do and
 report (model, market, MU, which app).
 
