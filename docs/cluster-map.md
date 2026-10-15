@@ -36,6 +36,15 @@ done on). HMI software versions seen: `H40.272.151` (MU 0803), `H40.272.304_OISm
 
 ## 1. Overview — MOI3 LG renders, encodes and streams the map over IP
 
+```mermaid
+flowchart LR
+    NE["naviengine<br/>renders the map"] --> MSS["multi-screen-server<br/>H.264 / OMX.qcom encode"]
+    MSS -->|"H.264 / UDP · IPv6 multicast<br/>ff14::2:4 : 42800 · VLAN 5<br/>Automotive Ethernet"| CL["Instrument cluster<br/>(separate ECU)<br/>joins group · decodes · displays"]
+    COD["coding — Dashboard_Display_Configuration (0B5A)<br/>navigation_map_transmission_mode = IP"] -. enables .-> MSS
+```
+
+_At a glance: the head unit (`5F`) renders and H.264-encodes the native map, then streams it as IPv6-multicast video over Automotive Ethernet; the cluster is a **separate ECU** that joins the group and decodes. Coding (§4) selects the IP source. This is the **native** map — not the phone-app map (see §5–§6)._
+
 On the LG MOI3 the map that appears on the cluster is **not** a signal wire from the head
 unit to the cluster. The head unit **renders** the map, **encodes** it as **H.264**, and
 **transmits** it as an **IP multicast video stream**. The cluster is a separate ECU that
@@ -284,6 +293,20 @@ report model/market/MU — see [open-questions.md](open-questions.md).)
 ---
 
 ## 5. The three "layers" of map-on-cluster
+
+```mermaid
+flowchart TB
+    L1["Layer 1 — Native map on cluster<br/>coding (Dashboard_Display_Configuration) · supported"]
+    L2["Layer 2 — Phone turn-by-turn on cluster<br/>CarPlay / Android Auto behaviour · varies by model"]
+    L3["Layer 3 — Full app map on cluster (Waze / Maps)<br/>NOT coding · gated in signed firmware · out of scope"]
+    L1 --- L2 --- L3
+    classDef ok fill:#d5f5e3,stroke:#1e8449,color:#0b3d24;
+    classDef mid fill:#fdf2d0,stroke:#b7950b,color:#5b4708;
+    classDef no fill:#fadbd8,stroke:#c0392b,color:#5b1a12;
+    class L1 ok
+    class L2 mid
+    class L3 no
+```
 
 These are routinely conflated; they are three different problems.
 

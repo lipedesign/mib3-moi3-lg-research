@@ -31,7 +31,11 @@ Public information about MIB3 is overwhelmingly about the **Harman MHI2 / MHI2Q*
 
 - **[docs/architecture.md](docs/architecture.md)** — platform architecture: diagnosis addresses, buses, GPS source, sound (A2B), radio, displays and the image-transport paths.
 - **[docs/cluster-map.md](docs/cluster-map.md)** — the **navigation-map-to-cluster pipeline**: the multicast video stream, the codec, the adaptation that enables it, and the three "layers" of map-on-cluster (native / phone turn-by-turn / full app map). The core of this repo.
+- **[docs/coding-model.md](docs/coding-model.md)** — the **coding / adaptation model**: how the HMI reads coding "sets" (DIDs), the field layout, the important fields, and the one coding bit that lights the native cluster map.
 - **[docs/firmware.md](docs/firmware.md)** — firmware package structure: the AGL userland, the Qualcomm boot chain, the protection layers, and the update-container format.
+- **[docs/bench-emulation.md](docs/bench-emulation.md)** — methodology for studying the HMI **read-only on a PC** (observing its behaviour without the hardware).
+- **[docs/landscape.md](docs/landscape.md)** — related public projects and tools, and what does / doesn't carry over from the Harman MHI2 scene.
+- **[docs/glossary.md](docs/glossary.md)** — the terms used across these notes.
 - **[docs/open-questions.md](docs/open-questions.md)** — what we still don't know, and where contributors can help.
 
 ## How to contribute

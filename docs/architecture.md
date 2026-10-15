@@ -63,6 +63,17 @@ mechanism exists and which modules take part — see §9. Defeating it is out of
 
 ## 2. Buses — how the modules talk
 
+```mermaid
+flowchart TB
+    OCU["Connectivity / eCall module (0075)<br/>GPS source — when present"] -->|"Ethernet · GPS / position"| HU
+    HU["Head unit / infotainment (5F)<br/>Qualcomm + AGL"] -->|"Ethernet · IP video (map) · [LG]"| CL["Instrument cluster<br/>(Active Info Display)"]
+    HU <-->|"A2B · audio"| AMP["External amplifier (47)"]
+    HU -->|"LVDS · video"| MMI["Center display (MMI)"]
+    HU <-->|"infotainment CAN · control + sensors"| CAN(("vehicle CAN"))
+```
+
+_The head unit (`5F`) is the hub. On the LG build the map reaches the cluster over **Ethernet** (IP video); on Audi it is LVDS/MOST instead — see §6._
+
 MIB3 uses several different buses depending on *what* is being carried. This is one of the
 biggest changes from MIB2.
 
