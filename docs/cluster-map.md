@@ -168,6 +168,39 @@ Interface) / **RSI** REST-over-JSON bus.
   `DSIDisplayManagement` service). It carries a `surfaces.map` naming `navi`, `test`,
   `navi-kombi-renderingsurface`. `[fw-static]`
 
+### 3.3.1 The DisplayManagement data model — and where the stream *source* lives
+
+`displaymanagement` (RSI/VIWI) is a small REST/JSON resource tree with three element types.
+Both the service (`rsi-display-management`) and every client parse the same JSON; the field set
+below is read from the client-side `fromJSON` parsers in `libMIBNavSDClientLib_CarIF.so.00` and in
+`multi-screen-server`. `[disasm]` (REA / Ghidra 12.1.4, MU 0883)
+
+| Resource | Element — JSON fields |
+|---|---|
+| `displaymanagement/display` | `width`, `height`, **`currentVisibleSurfaces`** (the list that gates which surfaces are live) |
+| `displaymanagement/renderingSurfaces` | `name`, `internalIdentifier`, `display`, `topLeftX`, `topLeftY`, `width`, `height`, `streamParameters` |
+| `displaymanagement/streamParameters` | `ip`, `port`, `framerate`, `resync` |
+
+The decisive point for the "three layers" (§5–§6): a `renderingSurface` **does carry its source**,
+two ways. `[disasm]`
+
+- **Direct** — its `name` field, when it holds the URI scheme **`surfaceid://<id>`**, names the IVI
+  surface to capture (`<id>` is the integer IVI surface id). This is the generic mechanism.
+- **Via a map-renderer** — for the native map the `name` is literally `"navi-kombi-renderingsurface"`
+  (not a `surfaceid://`), and the source is supplied by *binding the surface to a map-renderer*
+  (§3.4); the consumer then reads it from the surface's `internalIdentifier`.
+
+The **consumer** that turns this into a grab is `multi-screen-server`: its
+`MultiScreenController` mirrors the same three resources and, in
+`MultiScreenController::prepareStreamsList`, walks the `renderingSurfaces`, resolves each one's
+`display` and `streamParameters`, checks it is in the display's `currentVisibleSurfaces`, extracts
+the source id (strip `surfaceid://`, else `internalIdentifier`), and emits a `StreamInfo{ id, name,
+streamParametersId, sourceSurfaceId, ip, port, framerate }` to `updateStreamsList` — which drives the
+`ShareServer` state machine (`get_ivi_share_surface(<id>)` → encode → RTP) documented in the
+companion code repo. `[disasm]` So the mss is **not** hard-wired to the native engine's surface: the
+renderingSurface's source field is what selects it. (This is the *display* path — see the scope
+reminder; obtaining code execution to publish such a surface on a real unit is out of scope.)
+
 ### 3.4 The BAP function that wires map → cluster — `navsd_app`
 
 `/lge/app_ro/carif/navsd_app` (built on the same `libMIBNavSDClientLib_CarIF`) is the **BAP
@@ -180,8 +213,18 @@ Interface) / **RSI** REST-over-JSON bus.
 3. **announces the stream to the cluster** over the BAP function **`VideoStreams`** (type,
    IPv6 address, UDP port, URI). `[fw-static]`
 
+The actual publisher is the `Viwi::NavSd::us_displaymanagement` class inside
+`libMIBNavSDClientLib_CarIF`, and the sequence runs **once, at registration** (`registerDisplays`),
+not in a loop: `createNavKombiDisplay()` → `createRenderingSurfaces()` (POST to
+`.../renderingSurfaces` with `name="navi-kombi-renderingsurface"`, `width`/`height`, `display`) →
+`assingStreamingParametersToRenderingSurface()` → **`assignRenderingSurfaceToMapRenderer()`** (POSTs
+`{"renderingSurface":"<uri>"}` to the map-renderer, i.e. binds the native renderer as the source) →
+`startMapStreaming()`. `[disasm]` (REA / Ghidra 12.1.4, MU 0883)
+
 This is the crucial wiring: the thing fed into the multicast stream is the **native engine's
-`kombi` surface** — see §6 for why that matters.
+`kombi` surface** — see §6 for why that matters. Because the source is bound **at registration**,
+and later visibility changes only re-POST a `framerate` (§6), this is also the exact seam a runtime
+redirect works on.
 
 ### 3.5 Startup order
 
@@ -389,6 +432,21 @@ out of scope for this repository**, and we do not publish patch offsets or steps
 defeating those protections.
 
 > **Update (Oct 2026) — a runtime route exists, shown publicly.** The two facts above rule out *coding*, and they show that the **native** route (flip the gate **and** re-point `navsd_app`) would mean signed-firmware changes. They do **not** rule out a **third route**: a **custom service running at runtime** that takes the phone-app surface (CarPlay / Android Auto), crops it to the cluster's **1280×480**, and pushes it over the same **RSI / display** path — **without touching the signed firmware** (it runs from `tmpfs`; a reboot clears it, and dm-verity / Secure Boot / the VW signature stay intact). A public proof-of-concept by **daChillout & Meich** on a Cupra Formentor VZ (MOI3) did exactly this — Android Auto (Waze / Google Maps) on the cluster — and the author says it will be open-sourced ([drive2.ru](https://www.drive2.ru/l/745563717583775343/)). It **validates** the pipeline above: RSI, `multi-screen-server` and the 1280×480 cluster stream are exactly what it uses. **What the PoC does not publish — and what this repo does not cover — is how code execution is obtained on the unit.** The *display* step (a runtime RSI service) defeats no protection; the *access* to run code on the ECU is the separate, out-of-scope part.
+
+> **How the display seam actually behaves (2026-10-16 RE).** Mapping the producer in full
+> (§3.3.1, §3.4) shows *why* a display-path redirect is tractable and where it is fragile. The
+> renderingSurface's **source is set once, at registration**; it is not re-asserted in a loop. When
+> the native map is shown or hidden, `us_displaymanagement::OnKombiMapRendererVisibilityChanged`
+> does **not** rewrite the source — it only calls `ToggleStreamFramerate`, which POSTs a new
+> `framerate` to the `streamParameters`. That value comes from `calculateFramerate`: **1 fps**
+> (idle/hidden) or **10 fps** (map active) — it **never drops to 0**. `[disasm]` Consequences for a
+> runtime redirect that re-points the surface source: it **persists across show/hide** (those don't
+> touch the source), but it is **reverted by anything that re-runs `registerDisplays`** (a NavSd
+> restart/reconnect), and if it *hijacks the native surface* the car's own framerate-throttle still
+> applies (your stream gets pulled down to 1 fps whenever the native side thinks it is hidden). A
+> redirect that instead creates its **own** renderingSurface + streamParameters avoids both. None of
+> this changes the scope line: this is all the *display* path; the code-execution/access to publish
+> such a surface on a real unit remains out of scope.
 
 ### 6.1 The protection layers (described, not defeated)
 
