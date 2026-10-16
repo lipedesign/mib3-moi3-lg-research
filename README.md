@@ -9,9 +9,19 @@
 ![protections](https://img.shields.io/badge/protections-out%20of%20scope-lightgrey)
 ![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen)
 
+[![code — moi3-cluster-pipeline-re](https://img.shields.io/badge/%F0%9F%9B%A0%20code-moi3--cluster--pipeline--re-1f6feb?logo=github&logoColor=white)](https://github.com/lipedesign/moi3-cluster-pipeline-re)
+
 ---
 
 **TL;DR** — MIB3 ships as two very different machines. Almost everything public documents the **Harman MHI2** one (MOST bus, QNX). This repo is about the **other** one — **LG + Qualcomm + Automotive Grade Linux, with Ethernet video to the cluster** — which is barely documented anywhere. Everything here is **read-only** research from public documents and firmware analysis; **defeating device protections is out of scope.**
+
+> ## 🛠️ There's a companion repo with the working code
+>
+> These are the **research notes** — the *what* and the *why*. The cluster-video pipeline they describe is **reverse-engineered and reproduced on an ordinary PC workbench** — LD_PRELOAD shims standing in for the Qualcomm GPU and H.264 encoder, a minimal Wayland **`ivi_share`** compositor, Mesa software GL, and the RGBA→cluster-NV12 conversion — so the whole mechanism can be studied and driven end-to-end **with no car and without shipping any firmware**.
+>
+> ### 👉 [**lipedesign/moi3-cluster-pipeline-re**](https://github.com/lipedesign/moi3-cluster-pipeline-re) — the *how*, running on a bench
+>
+> If you want to *read* how MOI3 LG works, start here. If you want to *run* the pipeline yourself, go there.
 
 ## 🧭 How the native map reaches the cluster
 
