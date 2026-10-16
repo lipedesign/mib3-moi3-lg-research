@@ -431,7 +431,7 @@ but **producing or operationalising a bypass of the signature/secure-boot chain 
 out of scope for this repository**, and we do not publish patch offsets or steps aimed at
 defeating those protections.
 
-> **Update (Oct 2026) — a runtime route exists, shown publicly.** The two facts above rule out *coding*, and they show that the **native** route (flip the gate **and** re-point `navsd_app`) would mean signed-firmware changes. They do **not** rule out a **third route**: a **custom service running at runtime** that takes the phone-app surface (CarPlay / Android Auto), crops it to the cluster's **1280×480**, and pushes it over the same **RSI / display** path — **without touching the signed firmware** (it runs from `tmpfs`; a reboot clears it, and dm-verity / Secure Boot / the VW signature stay intact). A public proof-of-concept by **daChillout & Meich** on a Cupra Formentor VZ (MOI3) did exactly this — Android Auto (Waze / Google Maps) on the cluster — and the author says it will be open-sourced ([drive2.ru](https://www.drive2.ru/l/745563717583775343/)). It **validates** the pipeline above: RSI, `multi-screen-server` and the 1280×480 cluster stream are exactly what it uses. **What the PoC does not publish — and what this repo does not cover — is how code execution is obtained on the unit.** The *display* step (a runtime RSI service) defeats no protection; the *access* to run code on the ECU is the separate, out-of-scope part.
+> **Update (Oct 2026) — a runtime route exists, shown publicly.** The two facts above rule out *coding*, and they show that the **native** route (flip the gate **and** re-point `navsd_app`) would mean signed-firmware changes. They do **not** rule out a **third route**: a **custom service running at runtime** that takes the phone-app surface (CarPlay / Android Auto), crops it to the cluster's **1280×480**, and pushes it over the same **RSI / display** path — **without touching the signed firmware** (it runs from `tmpfs`; a reboot clears it, and dm-verity / Secure Boot / the VW signature stay intact). A public proof-of-concept by **daChillout & Meich** on a Cupra Formentor VZ (MOI3) did exactly this — Android Auto (Waze / Google Maps) on the cluster — and the author says it will be open-sourced ([drive2.ru](https://www.drive2.ru/l/745563717583775343/)). It **validates** the pipeline above: RSI, `multi-screen-server` and the 1280×480 cluster stream are exactly what it uses. **What the PoC does not publish — and what this repo does not cover — is how code execution is obtained on the unit.** The *display* step (a runtime RSI service) defeats no protection; the *access* to run code on the ECU is the separate, out-of-scope part. One public data point on *why* the RSI bus accepts such a client once code is running: PCAutomotive's **CVE-2023-29113** reports the MIB3 proprietary IPC has **no privilege separation** (§9) — an access-layer weakness, out of scope here, noted only as context.
 
 > **How the display seam actually behaves (2026-10-16 RE).** Mapping the producer in full
 > (§3.3.1, §3.4) shows *why* a display-path redirect is tractable and where it is fragile. The
@@ -544,9 +544,17 @@ Displayable numbers and `setActiveDisplayable` are Audi (MPR3), not LG.
 - **Black Hat EU-24 — "Over-the-Air: Compromise of Modern Volkswagen Group Vehicles"**
   (PCAutomotive). Confirms VW sources MIB3 from **three vendors — Preh Car Connect, LG, Aptiv**
   — and that the published security research targets the **Preh** unit (Renesas R-Car M3), not
-  LG; useful context for why LG is under-documented.
+  LG; useful context for why LG is under-documented. The disclosed set (CVE-2023-28902…28912 and
+  29113) includes **CVE-2023-29113** — *"no privilege separation for the proprietary IPC"* (CWE-284,
+  CVSS 6.3; first seen on a Skoda Superb III). Architecturally that says the MIB3 **RSI/IPC bus does
+  not enforce OS-level access control** once a process is running on the unit, which is what lets a
+  *runtime* RSI service (§6) drive `displaymanagement` at all. It is independently consistent with
+  what the LG client shows (the RSI client library's subscribe carries an `authorization` that
+  defaults to a no-token value). **This CVE is about the access/foothold layer, which is out of
+  scope here** — cited only as architectural context, not as a technique.
   <https://i.blackhat.com/EU-24/Presentations/EU-24-Parnishchev-OverTheAirVW.pdf> ·
-  advisory: <https://pcacybersecurity.com/resources/advisory/vulnerabilities-in-vw-mib3-infotainment-2>
+  advisory: <https://pcacybersecurity.com/resources/advisory/vulnerabilities-in-vw-mib3-infotainment-2> ·
+  CVE-2023-29113: <https://github.com/advisories/GHSA-938m-532f-x65h>
 - **RSI / VIWI bus (open-source analogue):** `wzr1337/rsi.server`, `wzr1337/rsi.serviceregistry`.
 - **Harman MHI2 contrast (other platform):** `harman-f/mhi2_altscreen_carplay` and the repos in
   §7.
