@@ -10,18 +10,25 @@
 ![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen)
 
 [![code — moi3-cluster-pipeline-re](https://img.shields.io/badge/%F0%9F%9B%A0%20code-moi3--cluster--pipeline--re-1f6feb?logo=github&logoColor=white)](https://github.com/lipedesign/moi3-cluster-pipeline-re)
+[![altscreen — mib3-moi3-altscreen](https://img.shields.io/badge/%F0%9F%9A%97%20altscreen-mib3--moi3--altscreen-ff6b35?logo=github&logoColor=white)](https://github.com/lipedesign/mib3-moi3-altscreen)
 
 ---
 
 **TL;DR** — MIB3 ships as two very different machines. Almost everything public documents the **Harman MHI2** one (MOST bus, QNX). This repo is about the **other** one — **LG + Qualcomm + Automotive Grade Linux, with Ethernet video to the cluster** — which is barely documented anywhere. Everything here is **read-only** research from public documents and firmware analysis; **defeating device protections is out of scope.**
 
-> ## 🛠️ There's a companion repo with the working code
+> ## 🛠️ There are companion repos with working code
 >
-> These are the **research notes** — the *what* and the *why*. The cluster-video pipeline they describe is **reverse-engineered and reproduced on an ordinary PC workbench** — LD_PRELOAD shims standing in for the Qualcomm GPU and H.264 encoder, a minimal Wayland **`ivi_share`** compositor, Mesa software GL, and the RGBA→cluster-NV12 conversion — so the whole mechanism can be studied and driven end-to-end **with no car and without shipping any firmware**.
+> These are the **research notes** — the *what* and the *why*. The ecosystem has two companion repos:
 >
 > ### 👉 [**lipedesign/moi3-cluster-pipeline-re**](https://github.com/lipedesign/moi3-cluster-pipeline-re) — the *how*, running on a bench
 >
-> If you want to *read* how MOI3 LG works, start here. If you want to *run* the pipeline yourself, go there.
+> The cluster-video pipeline reverse-engineered and reproduced on an ordinary PC — LD_PRELOAD shims, Wayland `ivi_share`, Mesa GL, and the RGBA→NV12 conversion — no car needed.
+>
+> ### 👉 [**lipedesign/mib3-moi3-altscreen**](https://github.com/lipedesign/mib3-moi3-altscreen) ⚠️ alpha — CarPlay AltScreen on the cluster
+>
+> The next step: intercepting the CarPlay AltScreen stream (type 111, 1280×480 H.264) and forwarding it to the cluster via MPEG-TS/RTP. **Not yet confirmed on real hardware.**
+>
+> If you want to *read* how MOI3 LG works, start here. To *run* the pipeline on a bench, see `moi3-cluster-pipeline-re`. To follow (or help with) CarPlay integration, see `mib3-moi3-altscreen`.
 
 ## 🧭 How the native map reaches the cluster
 
